@@ -38,7 +38,7 @@
             <h2>{{ t('historyDrawerTitle') }}</h2>
             <p>{{ t('historyDrawerDesc') }}</p>
           </div>
-          <button class="history-drawer-close" type="button" @click="closeHistoryDrawer">×</button>
+          <button class="history-drawer-close" type="button" :aria-label="t('close')" @click="closeHistoryDrawer">×</button>
         </div>
 
         <div v-if="historyDatesLoading" class="history-drawer-state">
@@ -197,6 +197,7 @@ const I18N = {
     emailHint: '请将您的邮箱发送至727987105@qq.com',
     comments: ' 评论',
     replies: ' 回复',
+    close: '关闭',
   },
   en: {
     siteTitle: 'Daily AI Frontier',
@@ -229,6 +230,7 @@ const I18N = {
     emailHint: 'Please send your email address to 727987105@qq.com',
     comments: ' comments',
     replies: ' replies',
+    close: 'Close',
   }
 };
 
@@ -376,12 +378,14 @@ export default {
     this.countdownTimer = setInterval(() => {
       this.updateCountdown();
     }, 1000);
+    window.addEventListener('keydown', this.handleKeyDown);
   },
   beforeUnmount() {
     if (this.countdownTimer) {
       clearInterval(this.countdownTimer);
       this.countdownTimer = null;
     }
+    window.removeEventListener('keydown', this.handleKeyDown);
   },
   methods: {
     t(key) {
@@ -407,6 +411,11 @@ export default {
     },
     closeHistoryDrawer() {
       this.historyDrawerOpen = false;
+    },
+    handleKeyDown(event) {
+      if (event.key === 'Escape' && this.historyDrawerOpen) {
+        this.closeHistoryDrawer();
+      }
     },
     resetFeedScroll() {
       const feedPanel = document.querySelector('.feed-panel');
