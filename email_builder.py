@@ -19,6 +19,7 @@ def _escape_html(text):
         .replace("<", "&lt;")
         .replace(">", "&gt;")
         .replace('"', "&quot;")
+        .replace("'", "&#x27;")
     )
 
 
@@ -43,8 +44,8 @@ def _build_github_table(repos):
             '<td class="summary">{}</td>'
             "</tr>".format(
                 i,
-                r["url"],
-                r["full_name"],
+                _escape_html(r["url"]),
+                _escape_html(r["full_name"]),
                 r["stars"],
                 _escape_html(r.get("ai_summary", "")),
             )
@@ -69,8 +70,8 @@ def _build_hn_table(stories):
 
     for i, s in enumerate(stories, 1):
         title = _escape_html(s.get("title", ""))
-        url = s.get("url", "")
-        hn_url = "https://news.ycombinator.com/item?id={}".format(s.get("id", ""))
+        url = _escape_html(s.get("url", ""))
+        hn_url = _escape_html("https://news.ycombinator.com/item?id={}".format(s.get("id", "")))
         score = s.get("score", 0)
         comments_count = s.get("descendants", 0)
         ai_summary = _escape_html(s.get("ai_summary", ""))
@@ -114,7 +115,7 @@ def _build_v2ex_table(topics):
     ]
 
     for i, t in enumerate(topics, 1):
-        url = t.get("url") or "https://www.v2ex.com/t/{}".format(t.get("id", ""))
+        url = _escape_html(t.get("url") or "https://www.v2ex.com/t/{}".format(t.get("id", "")))
         title = _escape_html(t.get("title", ""))
         node_title = _escape_html(t.get("node", {}).get("title", ""))
         summary = _escape_html(t.get("ai_summary", ""))
