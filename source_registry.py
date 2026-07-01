@@ -31,10 +31,10 @@ SOURCE_DEFINITIONS = [
         "category": "开源趋势",
     },
     {
-        "id": SOURCE_LINUX_DO_ID,
-        "name": "Linux.do",
-        "label": "Linux.do 技术日报",
-        "content_source": "Linux.do",
+        "id": SOURCE_HACKER_NEWS_ID,
+        "name": "Hacker News",
+        "label": "Hacker News",
+        "content_source": "Hacker News",
         "category": "社区讨论",
     },
     {
@@ -45,10 +45,10 @@ SOURCE_DEFINITIONS = [
         "category": "社区讨论",
     },
     {
-        "id": SOURCE_HACKER_NEWS_ID,
-        "name": "Hacker News",
-        "label": "Hacker News",
-        "content_source": "Hacker News",
+        "id": SOURCE_LINUX_DO_ID,
+        "name": "Linux.do",
+        "label": "Linux.do 技术日报",
+        "content_source": "Linux.do",
         "category": "社区讨论",
     },
     {
