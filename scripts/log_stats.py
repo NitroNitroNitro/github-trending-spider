@@ -161,47 +161,70 @@ def compute_stats(access_records, data_records):
     if total == 0:
         return stats
 
-    ips = set(r.get("IP", "") for r in access_records if r.get("IP"))
+    ips = set()
+    errors = []
+
+    total_latency = 0
+    max_latency = -float('inf')
+    min_latency = float('inf')
+    latency_count = 0
+
+    path_counter = defaultdict(int)
+    ip_counter = defaultdict(int)
+    hour_counter = defaultdict(int)
+    status_counter = defaultdict(int)
+
+    # Process all access records in a single pass to minimize iterations and list allocations
+    for r in access_records:
+        ip = r.get("IP")
+        if ip:
+            ips.add(ip)
+
+        ip_for_counter = r.get("IP", "未知")
+        ip_counter[ip_for_counter] += 1
+
+        lat = r.get("耗时ms")
+        if lat is not None:
+            total_latency += lat
+            latency_count += 1
+            if lat > max_latency:
+                max_latency = lat
+            if lat < min_latency:
+                min_latency = lat
+
+        code = r.get("状态码", 0)
+        status_counter[code] += 1
+        if r.get("状态码", 200) >= 400:
+            errors.append(r)
+
+        path = r.get("路径", "未知")
+        path_counter[path] += 1
+
+        hour = r.get("小时", "??")
+        hour_counter[hour] += 1
+
     stats["独立IP数"] = len(ips)
 
-    latencies = [r["耗时ms"] for r in access_records if "耗时ms" in r]
-    if latencies:
-        stats["平均耗时ms"] = int(sum(latencies) / len(latencies))
-        stats["最大耗时ms"] = max(latencies)
-        stats["最小耗时ms"] = min(latencies)
+    if latency_count > 0:
+        stats["平均耗时ms"] = int(total_latency / latency_count)
+        stats["最大耗时ms"] = max_latency
+        stats["最小耗时ms"] = min_latency
     else:
         stats["平均耗时ms"] = 0
 
-    errors = [r for r in access_records if r.get("状态码", 200) >= 400]
     stats["错误请求数"] = len(errors)
     stats["错误率"] = "{:.1f}%".format(len(errors) / total * 100) if total else "0%"
 
     # --- 接口排行 ---
-    path_counter = defaultdict(int)
-    for r in access_records:
-        path = r.get("路径", "未知")
-        path_counter[path] += 1
     stats["接口排行"] = sorted(path_counter.items(), key=lambda x: x[1], reverse=True)[:10]
 
     # --- IP 排行 ---
-    ip_counter = defaultdict(int)
-    for r in access_records:
-        ip = r.get("IP", "未知")
-        ip_counter[ip] += 1
     stats["IP排行"] = sorted(ip_counter.items(), key=lambda x: x[1], reverse=True)[:10]
 
     # --- 时段分布（按小时） ---
-    hour_counter = defaultdict(int)
-    for r in access_records:
-        hour = r.get("小时", "??")
-        hour_counter[hour] += 1
     stats["时段分布"] = sorted(hour_counter.items())
 
     # --- 状态码分布 ---
-    status_counter = defaultdict(int)
-    for r in access_records:
-        code = r.get("状态码", 0)
-        status_counter[code] += 1
     stats["状态码分布"] = sorted(status_counter.items())
 
     # --- 数据来源统计 ---
