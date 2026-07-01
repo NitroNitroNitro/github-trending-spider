@@ -126,14 +126,14 @@ def _parse_datetime(value):
 
 
 def _latest_datetime(feed_items):
-    datetimes = [
-        feed_item["published_at"] or feed_item["generated_at"]
-        for feed_item in feed_items
-        if feed_item["published_at"] or feed_item["generated_at"]
-    ]
-    if not datetimes:
-        return None
-    return max(datetimes)
+    return max(
+        (
+            feed_item["published_at"] or feed_item["generated_at"]
+            for feed_item in feed_items
+            if feed_item["published_at"] or feed_item["generated_at"]
+        ),
+        default=None,
+    )
 
 
 def _sort_key(feed_item):
