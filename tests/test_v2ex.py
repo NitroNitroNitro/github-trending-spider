@@ -574,7 +574,7 @@ class TestSourceRegistry(unittest.TestCase):
         from source_registry import SOURCE_DEFINITIONS
         ids = [s["id"] for s in SOURCE_DEFINITIONS]
         self.assertEqual(ids.index("v2ex"), 3)
-        self.assertEqual(ids.index("hacker-news"), 2)  # V2EX 紧随 HN
+        self.assertEqual(ids.index("hacker-news"), 4)  # V2EX 紧随 HN
 
 
 if __name__ == "__main__":
