@@ -253,3 +253,5 @@ SEND_EMAIL_ENABLED = _get_bool_env("SEND_EMAIL_ENABLED", False)
 # 允许发送邮件的每日调度时间，24 小时制，逗号分隔。
 # 采集仍按 SPIDER_SCHEDULE_TIMES 执行；未配置 MAIL_TO_BY_TIME 时用这里控制哪些调度批次发邮件。
 EMAIL_SEND_TIMES = os.environ.get("EMAIL_SEND_TIMES", "07:50")
+# V2EX 并发请求线程数
+V2EX_CONCURRENT_WORKERS = int(os.environ.get("V2EX_CONCURRENT_WORKERS", "5"))

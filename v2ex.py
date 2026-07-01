@@ -10,6 +10,8 @@ import json
 import logging
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
 
 import requests
 
@@ -22,6 +24,7 @@ from config import (
     V2EX_REPLIES_PER_TOPIC,
     V2EX_REQUEST_INTERVAL,
     V2EX_TOP_COUNT,
+    V2EX_CONCURRENT_WORKERS,
 )
 
 logger = logging.getLogger(__name__)
@@ -122,30 +125,43 @@ def fetch_topic_replies(topics, replies_per_topic=None):
     if replies_per_topic is None:
         replies_per_topic = V2EX_REPLIES_PER_TOPIC
 
-    for idx, topic in enumerate(topics):
+    # 全局标记，若某次请求遇到 403 则置为 True
+    rate_limited = threading.Event()
+    request_lock = threading.Lock()
+
+    def _fetch_single_topic(topic):
         topic_id = topic.get("id")
         if not topic_id:
             topic["replies"] = []
-            continue
+            return
+
+        if rate_limited.is_set():
+            topic["replies"] = []
+            return
 
         url = "{}/replies/show.json?topic_id={}".format(V2EX_API_BASE, topic_id)
         try:
-            time.sleep(V2EX_REQUEST_INTERVAL)
+            # 使用锁确保按照间隔发出请求，避免并发突发导致 403 限流
+            with request_lock:
+                if rate_limited.is_set():
+                    topic["replies"] = []
+                    return
+                time.sleep(V2EX_REQUEST_INTERVAL)
+
+            # 在锁释放后才执行网络请求，允许并发 IO
             resp = requests.get(url, timeout=15)
 
             if resp.status_code == 403:
-                logger.warning("V2EX 限流(403)，跳过剩余帖子回复获取")
+                if not rate_limited.is_set():
+                    logger.warning("V2EX 限流(403)，跳过剩余帖子回复获取")
+                    rate_limited.set()
                 topic["replies"] = []
-                # 后续帖子也标记为空回复
-                for t in topics[idx + 1:]:
-                    t["replies"] = []
-                break
+                return
 
             resp.raise_for_status()
             all_replies = resp.json()
 
             if isinstance(all_replies, list):
-                # 取前 N 条回复
                 replies = []
                 for r in all_replies[:replies_per_topic]:
                     content = r.get("content", "").strip()
@@ -153,7 +169,7 @@ def fetch_topic_replies(topics, replies_per_topic=None):
                         replies.append({
                             "id": r.get("id"),
                             "member": r.get("member", {}).get("username", "anonymous"),
-                            "content": content[:500],  # 截断超长回复
+                            "content": content[:500],
                         })
                 topic["replies"] = replies
             else:
@@ -162,6 +178,14 @@ def fetch_topic_replies(topics, replies_per_topic=None):
         except requests.RequestException as e:
             logger.debug("获取帖子 %s 回复失败: %s", topic_id, e)
             topic["replies"] = []
+
+    with ThreadPoolExecutor(max_workers=V2EX_CONCURRENT_WORKERS) as executor:
+        futures = [executor.submit(_fetch_single_topic, topic) for topic in topics]
+        for future in as_completed(futures):
+            try:
+                future.result()
+            except Exception as e:
+                logger.debug("并发获取 V2EX 回复异常: %s", e)
 
     total_replies = sum(len(t.get("replies", [])) for t in topics)
     logger.info("V2EX 回复获取完成: 共 %d 条回复", total_replies)
