@@ -171,26 +171,8 @@ def fetch_topic_replies(topics, replies_per_topic=None):
 # =========================================================================
 # 2. AI 总结
 # =========================================================================
-def ai_summarize_v2ex(topics):
-    """
-    调用 AI 对 V2EX 帖子和回复进行中文总结。
-
-    Args:
-        topics: 帖子列表（已含 replies 字段）
-
-    Returns:
-        list[dict]: 每个帖子新增 "ai_summary" 字段
-    """
-    if not topics:
-        return topics
-
-    if not GITHUB_TOKEN:
-        logger.warning("未配置 GITHUB_TOKEN，跳过 V2EX AI 总结")
-        for t in topics:
-            t["ai_summary"] = "（未配置 AI Token，无法生成总结）"
-        return topics
-
-    # 构建 prompt
+def _build_v2ex_prompt(topics):
+    """构建 V2EX AI 总结的 prompt"""
     topic_text_lines = []
     for i, t in enumerate(topics, 1):
         node_name = t.get("node", {}).get("title", "")
@@ -246,22 +228,53 @@ def ai_summarize_v2ex(topics):
         "帖子列表：\n{}"
     ).format(len(topics), topics_text)
 
+    return prompt
+
+
+def ai_summarize_v2ex(topics):
+    """
+    调用 AI 对 V2EX 帖子和回复进行中文总结。
+
+    Args:
+        topics: 帖子列表（已含 replies 字段）
+
+    Returns:
+        list[dict]: 每个帖子新增 "ai_summary" 字段
+    """
+    if not topics:
+        return topics
+
+    if not GITHUB_TOKEN:
+        logger.warning("未配置 GITHUB_TOKEN，跳过 V2EX AI 总结")
+        for t in topics:
+            t["ai_summary"] = "（未配置 AI Token，无法生成总结）"
+        return topics
+
+    # 构建 prompt
+    prompt = _build_v2ex_prompt(topics)
+
     try:
         summaries = _call_v2ex_ai_api(prompt)
-        if summaries:
-            for item in summaries:
-                idx = item.get("index", 0) - 1
-                if 0 <= idx < len(topics):
-                    topics[idx]["ai_summary"] = item.get("summary", "")
+        _apply_ai_summaries_to_topics(topics, summaries)
     except Exception as e:
         logger.error("V2EX AI 总结失败: %s", e)
+        _apply_ai_summaries_to_topics(topics, None)
+
+    return topics
+
+
+def _apply_ai_summaries_to_topics(topics, summaries):
+    """将 AI 返回的总结应用到帖子列表"""
+    if summaries:
+        for item in summaries:
+            idx = item.get("index", 0) - 1
+            if 0 <= idx < len(topics):
+                topics[idx]["ai_summary"] = item.get("summary", "")
 
     # 确保每个 topic 都有 ai_summary 字段
     for t in topics:
         if "ai_summary" not in t:
             t["ai_summary"] = "（AI 总结生成失败）"
-
-    return topics
 
 
 def _call_v2ex_ai_api(prompt, max_retries=10):
