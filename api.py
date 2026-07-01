@@ -17,6 +17,7 @@ from content_store import (
     list_recent_history_dates,
     load_history_archive_snapshot,
     load_latest_snapshot,
+    load_latest_snapshots_batch,
 )
 from rss_builder import build_rss_feed
 from scheduler import start_scheduler, stop_scheduler
@@ -80,13 +81,23 @@ def list_sources():
 def get_rss_feed():
     """返回全部来源最新内容的 RSS 2.0 feed。"""
     snapshots = []
+    source_ids = [source["id"] for source in SOURCE_DEFINITIONS]
+
+    try:
+        batch_results = load_latest_snapshots_batch(source_ids)
+    except Exception as e:
+        logger.warning("[RSS] 批量读取来源失败 | 错误=%s", e)
+        batch_results = {}
+
     for source in SOURCE_DEFINITIONS:
         source_id = source["id"]
-        try:
-            snapshot, served_from = load_latest_snapshot(source_id)
-        except Exception as e:
-            logger.warning("[RSS] 来源=%s | 读取失败 | 错误=%s", source_id, e)
+
+        snapshot_data = batch_results.get(source_id)
+        if not snapshot_data:
+            logger.warning("[RSS] 来源=%s | 未在批量读取结果中找到", source_id)
             continue
+
+        snapshot, served_from = snapshot_data
 
         if not snapshot:
             logger.info("[RSS] 来源=%s | 读取自=%s | 条数=0", source_id, served_from)
