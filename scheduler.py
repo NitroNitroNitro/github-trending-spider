@@ -7,7 +7,6 @@ FastAPI 进程内采集调度器。
 
 import logging
 import threading
-import time
 from datetime import datetime, timedelta
 
 from config import (
