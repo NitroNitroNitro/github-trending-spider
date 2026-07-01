@@ -9,7 +9,7 @@ import json
 import logging
 import re
 import time
-from html.parser import HTMLParser
+from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
 import requests
@@ -61,10 +61,95 @@ def fetch_linux_do_daily_items(count=None, max_retries=None):
 
 def parse_linux_do_daily_html(html_text, page_url=LINUX_DO_NEWS_URL):
     """解析 news.linuxe.top 首页 HTML。"""
-    parser = _LinuxDoDailyParser(page_url)
-    parser.feed(html_text or "")
-    parser.close()
-    report = parser.to_report()
+    soup = BeautifulSoup(html_text or "", 'html.parser')
+
+    title_tag = soup.title
+    title = _clean_text(title_tag.get_text()) if title_tag else ""
+
+    meta_bar = soup.find(class_=re.compile("metaBar"))
+    meta_text = _clean_text(meta_bar.get_text()) if meta_bar else ""
+
+    daily_headline_node = soup.find(class_=re.compile("dailyHeadline"))
+    daily_headline = _clean_text(daily_headline_node.get_text()) if daily_headline_node else ""
+
+    overview_node = soup.find(class_=re.compile("overview"))
+    overview = _clean_text(overview_node.get_text()) if overview_node else ""
+
+    note_node = soup.find(class_=re.compile("note"))
+    note = _clean_text(note_node.get_text()) if note_node else ""
+
+    highlights = []
+    highlight_list = soup.find('ul', class_=re.compile("highlightList"))
+    if highlight_list:
+        for li in highlight_list.find_all('li', recursive=False):
+            highlights.append(_clean_text(li.get_text()))
+
+    sections = []
+    for section_node in soup.find_all('section', class_=re.compile("articleSection")):
+        h4 = section_node.find('h4')
+        section_title = re.sub(r"^\d+\s*\.\s*", "", _clean_text(h4.get_text())).strip() if h4 else ""
+
+        # In the original parser it would match <p> direct children or anywhere before the next section
+        p = section_node.find('p')
+        section_summary = _clean_text(p.get_text()) if p else ""
+
+        links = []
+        article_links = section_node.find('ul', class_=re.compile("articleLinks"))
+        if article_links:
+            for li in article_links.find_all('li', recursive=False):
+                a_tag = li.find('a')
+                if a_tag:
+                    url = _normalize_topic_url(a_tag.get('href', ''), page_url)
+                    link_title = _clean_text(a_tag.get_text())
+
+                    link_meta_node = li.find(class_=re.compile("linkMeta"))
+                    reply_count = _extract_reply_count(_clean_text(link_meta_node.get_text())) if link_meta_node else 0
+
+                    links.append({
+                        "title": link_title,
+                        "url": url,
+                        "reply_count": reply_count
+                    })
+
+        if section_title or links:
+            sections.append({
+                "title": section_title,
+                "summary": section_summary,
+                "links": links
+            })
+
+    published_at = _extract_chinese_date(meta_text)
+    items = []
+    for section in sections:
+        section_title = section.get("title", "")
+        section_summary = section.get("summary", "")
+        for link in section.get("links", []):
+            items.append({
+                "title": link.get("title", ""),
+                "url": link.get("url", ""),
+                "reply_count": link.get("reply_count", 0),
+                "section_title": section_title,
+                "section_summary": section_summary,
+                "published_at": published_at,
+                "daily_url": page_url,
+                "daily_title": title or "linux.do 技术聚合日报",
+                "daily_headline": daily_headline,
+                "daily_overview": overview,
+            })
+
+    report = {
+        "daily_url": page_url,
+        "daily_title": title or "linux.do 技术聚合日报",
+        "published_at": published_at,
+        "meta_text": meta_text,
+        "daily_headline": daily_headline,
+        "overview": overview,
+        "note": note,
+        "highlights": highlights,
+        "sections": sections,
+        "items": items,
+    }
+
     if not report.get("items"):
         raise ValueError("未解析到 Linux.do 原帖条目")
     return report
@@ -192,161 +277,6 @@ def _call_linux_do_ai_api(prompt, max_retries=10):
 
     return None
 
-
-class _LinuxDoDailyParser(HTMLParser):
-    """面向 news.linuxe.top 当前 Next.js HTML 的轻量结构解析器。"""
-
-    def __init__(self, page_url):
-        HTMLParser.__init__(self, convert_charrefs=True)
-        self.page_url = page_url
-        self.title = ""
-        self.meta_text = ""
-        self.daily_headline = ""
-        self.overview = ""
-        self.note = ""
-        self.highlights = []
-        self.sections = []
-
-        self._captures = []
-        self._in_highlights = False
-        self._current_section = None
-        self._in_article_links = False
-        self._current_link = None
-
-    def handle_starttag(self, tag, attrs):
-        attrs_dict = dict(attrs)
-        class_value = attrs_dict.get("class", "")
-
-        if tag == "title":
-            self._start_capture("page_title", tag)
-        elif _class_has_fragment(class_value, "metaBar"):
-            self._start_capture("meta_text", tag)
-        elif _class_has_fragment(class_value, "dailyHeadline"):
-            self._start_capture("daily_headline", tag)
-        elif _class_has_fragment(class_value, "overview"):
-            self._start_capture("overview", tag)
-        elif _class_has_fragment(class_value, "note"):
-            self._start_capture("note", tag)
-        elif tag == "ul" and _class_has_fragment(class_value, "highlightList"):
-            self._in_highlights = True
-        elif self._in_highlights and tag == "li":
-            self._start_capture("highlight", tag)
-        elif tag == "section" and _class_has_fragment(class_value, "articleSection"):
-            self._current_section = {
-                "title": "",
-                "summary": "",
-                "links": [],
-            }
-        elif self._current_section is not None:
-            if tag == "h4" and not self._current_section.get("title"):
-                self._start_capture("section_title", tag)
-            elif tag == "p" and not self._current_section.get("summary"):
-                self._start_capture("section_summary", tag)
-            elif tag == "ul" and _class_has_fragment(class_value, "articleLinks"):
-                self._in_article_links = True
-            elif self._in_article_links and tag == "li":
-                self._current_link = {
-                    "title": "",
-                    "url": "",
-                    "reply_count": 0,
-                }
-            elif self._current_link is not None and tag == "a":
-                self._current_link["url"] = _normalize_topic_url(attrs_dict.get("href", ""), self.page_url)
-                self._start_capture("link_title", tag)
-            elif self._current_link is not None and _class_has_fragment(class_value, "linkMeta"):
-                self._start_capture("link_meta", tag)
-
-    def handle_endtag(self, tag):
-        while self._captures and self._captures[-1]["end_tag"] == tag:
-            capture = self._captures.pop()
-            self._finish_capture(capture["name"], _clean_text("".join(capture["parts"])))
-
-        if self._current_link is not None and tag == "li":
-            if self._current_link.get("title") and self._current_link.get("url"):
-                self._current_section["links"].append(self._current_link)
-            self._current_link = None
-        elif self._in_article_links and tag == "ul":
-            self._in_article_links = False
-        elif self._current_section is not None and tag == "section":
-            if self._current_section.get("title") or self._current_section.get("links"):
-                self.sections.append(self._current_section)
-            self._current_section = None
-            self._in_article_links = False
-        elif self._in_highlights and tag == "ul":
-            self._in_highlights = False
-
-    def handle_data(self, data):
-        if not data:
-            return
-        for capture in self._captures:
-            capture["parts"].append(data)
-
-    def to_report(self):
-        published_at = _extract_chinese_date(self.meta_text)
-        items = []
-        for section in self.sections:
-            section_title = section.get("title", "")
-            section_summary = section.get("summary", "")
-            for link in section.get("links", []):
-                items.append({
-                    "title": link.get("title", ""),
-                    "url": link.get("url", ""),
-                    "reply_count": link.get("reply_count", 0),
-                    "section_title": section_title,
-                    "section_summary": section_summary,
-                    "published_at": published_at,
-                    "daily_url": self.page_url,
-                    "daily_title": self.title or "linux.do 技术聚合日报",
-                    "daily_headline": self.daily_headline,
-                    "daily_overview": self.overview,
-                })
-        return {
-            "daily_url": self.page_url,
-            "daily_title": self.title or "linux.do 技术聚合日报",
-            "published_at": published_at,
-            "meta_text": self.meta_text,
-            "daily_headline": self.daily_headline,
-            "overview": self.overview,
-            "note": self.note,
-            "highlights": self.highlights,
-            "sections": self.sections,
-            "items": items,
-        }
-
-    def _start_capture(self, name, end_tag):
-        self._captures.append({
-            "name": name,
-            "end_tag": end_tag,
-            "parts": [],
-        })
-
-    def _finish_capture(self, name, text):
-        if not text:
-            return
-        if name == "page_title":
-            self.title = text
-        elif name == "meta_text":
-            self.meta_text = text
-        elif name == "daily_headline":
-            self.daily_headline = text
-        elif name == "overview":
-            self.overview = text
-        elif name == "note":
-            self.note = text
-        elif name == "highlight":
-            self.highlights.append(text)
-        elif name == "section_title" and self._current_section is not None:
-            self._current_section["title"] = re.sub(r"^\d+\s*\.\s*", "", text).strip()
-        elif name == "section_summary" and self._current_section is not None:
-            self._current_section["summary"] = text
-        elif name == "link_title" and self._current_link is not None:
-            self._current_link["title"] = text
-        elif name == "link_meta" and self._current_link is not None:
-            self._current_link["reply_count"] = _extract_reply_count(text)
-
-
-def _class_has_fragment(class_value, fragment):
-    return fragment in (class_value or "")
 
 
 def _normalize_topic_url(href, page_url):
