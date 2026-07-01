@@ -256,6 +256,60 @@ def _build_content_items_table(items):
     return "\n".join(rows)
 
 
+def _build_html_header(today):
+    """构建 HTML 邮件的头部和样式。"""
+    return [
+        "<!DOCTYPE html>",
+        '<html><head><meta charset="utf-8">',
+        "<style>",
+        "  body { font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; "
+        "         color: #24292e; padding: 20px; max-width: 1000px; margin: 0 auto; }",
+        "  h1 { color: #0366d6; border-bottom: 2px solid #e1e4e8; padding-bottom: 10px; }",
+        "  h2 { color: #24292e; margin-top: 30px; }",
+        "  table { border-collapse: collapse; width: 100%; margin: 15px 0; }",
+        "  th { background-color: #0366d6; color: white; padding: 10px 12px; "
+        "       text-align: left; font-size: 13px; }",
+        "  td { padding: 10px 12px; border-bottom: 1px solid #e1e4e8; "
+        "       font-size: 13px; vertical-align: top; }",
+        "  tr:nth-child(even) { background-color: #f6f8fa; }",
+        "  tr:hover { background-color: #f0f4f8; }",
+        "  a { color: #0366d6; text-decoration: none; }",
+        "  a:hover { text-decoration: underline; }",
+        "  .lang { display: inline-block; padding: 2px 8px; border-radius: 12px; "
+        "          background: #eff3f6; font-size: 12px; }",
+        "  .stars { color: #e3b341; font-weight: bold; }",
+        "  .comments { color: #6a737d; font-weight: bold; }",
+        "  .period { color: #22863a; font-size: 12px; }",
+        "  .summary { color: #586069; line-height: 1.5; }",
+        "  .section-divider { margin-top: 40px; border-top: 3px solid #e1e4e8; "
+        "                     padding-top: 10px; }",
+        "  .footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #e1e4e8; "
+        "            color: #6a737d; font-size: 12px; }",
+        "</style>",
+        "</head><body>",
+        "<h1>AI 后端专项信息源报告 - {}</h1>".format(today),
+    ]
+
+
+def _build_html_footer():
+    """构建 HTML 邮件的页脚。"""
+    return [
+        '<div class="footer">',
+        "<p>此邮件由 AI 后端专项信息源 Spider 自动生成并发送。</p>",
+        "<p>数据来源：<a href='https://github.com/trending'>GitHub Trending</a> "
+        "| <a href='https://news.ycombinator.com/'>Hacker News</a> "
+        "| <a href='https://news.linuxe.top/'>Linux.do 技术日报</a> "
+        "| <a href='https://www.v2ex.com/'>V2EX</a> "
+        "| <a href='https://ai.tldr.tech/'>TLDR AI</a> "
+        "| <a href='https://openai.com/news/'>OpenAI</a> "
+        "| <a href='https://www.anthropic.com/news'>Anthropic</a> "
+        "| <a href='https://www.infoq.com/ai-development/'>InfoQ AI Development</a> "
+        "| AI 总结：GitHub Models ({}) </p>".format(AI_MODEL),
+        "</div>",
+        "</body></html>",
+    ]
+
+
 def build_email_html(daily_repos, weekly_repos, hn_stories, v2ex_topics=None, tldr_items=None, content_items=None):
     """
     将 GitHub Trending、Hacker News、V2EX 和 TLDR AI 数据构建成完整的 HTML 邮件内容。
@@ -296,37 +350,7 @@ def build_email_html(daily_repos, weekly_repos, hn_stories, v2ex_topics=None, tl
     ]
 
     today = datetime.now().strftime("%Y-%m-%d")
-    html_parts = [
-        "<!DOCTYPE html>",
-        '<html><head><meta charset="utf-8">',
-        "<style>",
-        "  body { font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; "
-        "         color: #24292e; padding: 20px; max-width: 1000px; margin: 0 auto; }",
-        "  h1 { color: #0366d6; border-bottom: 2px solid #e1e4e8; padding-bottom: 10px; }",
-        "  h2 { color: #24292e; margin-top: 30px; }",
-        "  table { border-collapse: collapse; width: 100%; margin: 15px 0; }",
-        "  th { background-color: #0366d6; color: white; padding: 10px 12px; "
-        "       text-align: left; font-size: 13px; }",
-        "  td { padding: 10px 12px; border-bottom: 1px solid #e1e4e8; "
-        "       font-size: 13px; vertical-align: top; }",
-        "  tr:nth-child(even) { background-color: #f6f8fa; }",
-        "  tr:hover { background-color: #f0f4f8; }",
-        "  a { color: #0366d6; text-decoration: none; }",
-        "  a:hover { text-decoration: underline; }",
-        "  .lang { display: inline-block; padding: 2px 8px; border-radius: 12px; "
-        "          background: #eff3f6; font-size: 12px; }",
-        "  .stars { color: #e3b341; font-weight: bold; }",
-        "  .comments { color: #6a737d; font-weight: bold; }",
-        "  .period { color: #22863a; font-size: 12px; }",
-        "  .summary { color: #586069; line-height: 1.5; }",
-        "  .section-divider { margin-top: 40px; border-top: 3px solid #e1e4e8; "
-        "                     padding-top: 10px; }",
-        "  .footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #e1e4e8; "
-        "            color: #6a737d; font-size: 12px; }",
-        "</style>",
-        "</head><body>",
-        "<h1>AI 后端专项信息源报告 - {}</h1>".format(today),
-    ]
+    html_parts = _build_html_header(today)
 
     # GitHub 板块
     has_github = daily_repos or weekly_repos
@@ -406,20 +430,6 @@ def build_email_html(daily_repos, weekly_repos, hn_stories, v2ex_topics=None, tl
         html_parts.append("<p>今日未能获取到任何热点数据，请检查网络或日志。</p>")
 
     # 页脚
-    html_parts.extend([
-        '<div class="footer">',
-        "<p>此邮件由 AI 后端专项信息源 Spider 自动生成并发送。</p>",
-        "<p>数据来源：<a href='https://github.com/trending'>GitHub Trending</a> "
-        "| <a href='https://news.ycombinator.com/'>Hacker News</a> "
-        "| <a href='https://news.linuxe.top/'>Linux.do 技术日报</a> "
-        "| <a href='https://www.v2ex.com/'>V2EX</a> "
-        "| <a href='https://ai.tldr.tech/'>TLDR AI</a> "
-        "| <a href='https://openai.com/news/'>OpenAI</a> "
-        "| <a href='https://www.anthropic.com/news'>Anthropic</a> "
-        "| <a href='https://www.infoq.com/ai-development/'>InfoQ AI Development</a> "
-        "| AI 总结：GitHub Models ({}) </p>".format(AI_MODEL),
-        "</div>",
-        "</body></html>",
-    ])
+    html_parts.extend(_build_html_footer())
 
     return "\n".join(html_parts)
