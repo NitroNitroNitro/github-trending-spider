@@ -131,6 +131,45 @@ def load_latest_snapshot(source_id, output_dir=OUTPUT_ARCHIVE_DIR):
     return None, "empty"
 
 
+def load_latest_snapshots_batch(source_ids, output_dir=OUTPUT_ARCHIVE_DIR):
+    """批量读取多个来源的最新快照，优先使用 Redis mget，失败/缺失则降级到磁盘。"""
+    results = {}
+    redis_client = get_redis_client()
+
+    if redis_client:
+        keys = [_redis_key(sid) for sid in source_ids]
+        try:
+            raw_values = redis_client.mget(keys)
+            for i, raw_value in enumerate(raw_values):
+                if raw_value:
+                    try:
+                        if isinstance(raw_value, bytes):
+                            raw_value = raw_value.decode("utf-8")
+                        results[source_ids[i]] = (json.loads(raw_value), "redis")
+                    except Exception as e:
+                        logger.warning("解析 Redis mget 结果失败 (source=%s): %s", source_ids[i], e)
+        except Exception as e:
+            logger.warning("批量读取 Redis mget 失败，降级到磁盘: %s", e)
+
+    # 对于未命中 Redis 或处理失败的，逐个回退到磁盘（或置为空）
+    final_results = {}
+    for sid in source_ids:
+        if sid in results:
+            final_results[sid] = results[sid]
+        else:
+            try:
+                snapshot = load_latest_archive_snapshot(sid, output_dir)
+                if snapshot:
+                    final_results[sid] = (snapshot, "archive")
+                else:
+                    final_results[sid] = (None, "empty")
+            except Exception as e:
+                logger.warning("降级到磁盘读取失败 (source=%s): %s", sid, e)
+                final_results[sid] = (None, "empty")
+
+    return final_results
+
+
 def load_redis_snapshot(redis_client, source_id):
     """从 Redis 读取单来源最新快照。"""
     raw_value = redis_client.get(_redis_key(source_id))
