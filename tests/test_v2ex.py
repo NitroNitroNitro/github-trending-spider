@@ -570,11 +570,11 @@ class TestSourceRegistry(unittest.TestCase):
         self.assertEqual(source["category"], "社区讨论")
 
     def test_v2ex_position(self):
-        """V2EX 在第4位（HN之后）"""
+        """V2EX 在第4位（HN之前）"""
         from source_registry import SOURCE_DEFINITIONS
         ids = [s["id"] for s in SOURCE_DEFINITIONS]
         self.assertEqual(ids.index("v2ex"), 3)
-        self.assertEqual(ids.index("hacker-news"), 2)  # V2EX 紧随 HN
+        self.assertEqual(ids.index("hacker-news"), 4)  # HN 紧随 V2EX
 
 
 if __name__ == "__main__":
