@@ -1,0 +1,5 @@
+## 2024-07-02 - Custom Drawer Accessibility
+
+**Learning:** Custom slide-out drawers function effectively as modals for screen readers and need similar accessibility treatment (`role="dialog"`, `aria-modal="true"`). Without these, screen readers struggle to contextualize the open panel. Additionally, icon-only toggle buttons and close buttons within these components are often overlooked for translation strings in standard `aria-label`s, which breaks multilingual a11y.
+
+**Action:** Always verify that custom drawer/modal components have proper dialog roles, modal flags, labeled titles (`aria-labelledby`), and stateful triggers (`aria-expanded`, `aria-controls`). Ensure that all `aria-label`s use the `t()` or equivalent localization function rather than hardcoded strings, especially for common actions like "Close" and external link icons.
