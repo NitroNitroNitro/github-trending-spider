@@ -13,6 +13,7 @@ import time
 from collections import defaultdict
 from datetime import datetime
 
+from starlette.background import BackgroundTask, BackgroundTasks
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
@@ -132,6 +133,16 @@ def _get_client_ip(request: Request) -> str:
     return "未知IP"
 
 
+def _record_access(ip, method, path, status, latency_ms, client):
+    # 忽略静态资源
+    if path.startswith(("/static", "/favicon.ico")):
+        return
+    logger.info(
+        "[访问] 来源IP=%s | 请求=%s %s | 状态码=%d | 耗时=%dms | 客户端=%s",
+        ip, method, path, status, latency_ms, client
+    )
+
+
 # =========================================================================
 # FastAPI 中间件
 # =========================================================================
@@ -158,11 +169,20 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
         status_code = response.status_code
         user_agent = request.headers.get("user-agent", "未知客户端")
 
-        # 输出访问日志（中文格式）
-        logger.info(
-            "[访问] 来源IP=%s | 请求=%s %s | 状态码=%d | 耗时=%dms | 客户端=%s",
-            client_ip, method, path, status_code, latency_ms, user_agent,
+        # 使用 BackgroundTask 异步后台输出访问日志，避免阻塞事件循环
+        new_task = BackgroundTask(
+            _record_access, client_ip, method, path, status_code, latency_ms, user_agent
         )
+        if getattr(response, "background", None) is None:
+            response.background = new_task
+        elif isinstance(response.background, BackgroundTasks):
+            response.background.add_task(new_task)
+        elif isinstance(response.background, BackgroundTask):
+            # Promote single BackgroundTask to BackgroundTasks
+            tasks = BackgroundTasks()
+            tasks.add_task(response.background)
+            tasks.add_task(new_task)
+            response.background = tasks
 
         # 更新统计计数器
         with _stats_lock:
