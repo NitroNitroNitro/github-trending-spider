@@ -106,12 +106,12 @@
           </div>
         </div>
         <div v-else-if="errorMessage" class="state-box error">{{ errorMessage }}</div>
-        <div v-else-if="items.length === 0" class="state-box">
+        <div v-else-if="computedItems.length === 0" class="state-box">
           {{ t('noContent') }}
         </div>
 
         <article
-          v-for="item in items"
+          v-for="item in computedItems"
           v-else
           :key="item.url + item.title"
           class="feed-item"
@@ -120,10 +120,10 @@
             <a class="item-title" :href="item.url" target="_blank" rel="noreferrer">
               {{ item.title }}
             </a>
-            <p class="item-summary">{{ getDisplaySummary(item) }}</p>
-            <div class="item-tags" v-if="getItemTags(item).length">
+            <p class="item-summary">{{ item._displaySummary }}</p>
+            <div class="item-tags" v-if="item._tags.length">
               <span
-                v-for="tag in getItemTags(item)"
+                v-for="tag in item._tags"
                 :key="tag.label"
                 class="item-tag"
                 :class="'item-tag--' + tag.type"
@@ -135,11 +135,11 @@
           </div>
           <a
             class="open-link"
-            :href="getOpenUrl(item)"
+            :href="item._openUrl"
             target="_blank"
             rel="noreferrer"
           >
-            {{ isDiscussion(item) ? t('viewDiscussion') : t('readOriginal') }}
+            {{ item._isDiscussion ? t('viewDiscussion') : t('readOriginal') }}
           </a>
         </article>
       </section>
@@ -346,6 +346,15 @@ export default {
     };
   },
   computed: {
+    computedItems() {
+      return this.items.map(item => ({
+        ...item,
+        _tags: this.getItemTags(item),
+        _displaySummary: this.getDisplaySummary(item),
+        _openUrl: this.getOpenUrl(item),
+        _isDiscussion: this.isDiscussion(item),
+      }));
+    },
     activeSourceLabel() {
       const map = this.lang === 'en' ? SOURCE_DISPLAY_MAP_EN : SOURCE_DISPLAY_MAP;
       const override = map[this.activeSourceId];

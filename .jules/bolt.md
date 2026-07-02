@@ -1,0 +1,3 @@
+## 2024-06-30 - Prevent unnecessary re-renders in Vue lists
+**Learning:** Calling methods inside a Vue template (especially inside a `v-for` loop or `v-if` condition) is a performance anti-pattern. The methods re-evaluate on every re-render of the component. For example, if a method is called twice per item in a list of 50 items, that's 100 method calls on every state change.
+**Action:** Instead of calling methods like `getDisplaySummary(item)` and `getItemTags(item)` directly in the template, map over the list of items in a `computed` property to pre-calculate these values (e.g., `item._tags = this.getItemTags(item)`). Vue will cache this computed property and only recalculate it when its dependencies change, drastically reducing unnecessary work during re-renders.
