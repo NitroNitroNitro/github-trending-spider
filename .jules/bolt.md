@@ -1,0 +1,3 @@
+## 2024-07-02 - Unnecessary Method Calls in Vue Templates with Timers
+**Learning:** In Vue, having a `setInterval` that updates a reactive variable (like a countdown timer) in the root component causes the entire template to re-render every tick. If the template contains a large `v-for` list that uses methods for data formatting (e.g., `getDisplaySummary(item)`), those methods will be executed repeatedly for every item on every tick, causing high CPU usage and poor performance.
+**Action:** Use Vue 3's `v-memo` directive on the `v-for` elements to skip re-rendering and method evaluation when the item's underlying data hasn't changed.

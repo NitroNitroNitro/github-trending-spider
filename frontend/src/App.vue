@@ -114,6 +114,7 @@
           v-for="item in items"
           v-else
           :key="item.url + item.title"
+          v-memo="[item.url, item.title, lang]"
           class="feed-item"
         >
           <div class="item-main">
