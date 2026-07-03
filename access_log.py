@@ -146,9 +146,10 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         start_time = time.time()
-        client_ip = _get_client_ip(request)
-        method = request.method
-        path = request.url.path
+        # 🛡️ Sentinel: Sanitize inputs to prevent Log Injection
+        client_ip = str(_get_client_ip(request)).replace("\n", " ").replace("\r", " ")
+        method = str(request.method)
+        path = str(request.url.path).replace("\n", " ").replace("\r", " ")
 
         # 执行请求
         response = await call_next(request)
@@ -156,7 +157,7 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
         # 计算耗时
         latency_ms = int((time.time() - start_time) * 1000)
         status_code = response.status_code
-        user_agent = request.headers.get("user-agent", "未知客户端")
+        user_agent = str(request.headers.get("user-agent", "未知客户端")).replace("\n", " ").replace("\r", " ")
 
         # 输出访问日志（中文格式）
         logger.info(
@@ -168,8 +169,13 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
         with _stats_lock:
             _stats["总请求数"] += 1
             _stats["累计耗时ms"] += latency_ms
-            _stats["IP计数"][client_ip] += 1
-            _stats["接口计数"][path] += 1
+
+            # 🛡️ Sentinel: Limit unique IPs and paths tracking to prevent memory exhaustion DoS
+            if len(_stats["IP计数"]) < 50000 or client_ip in _stats["IP计数"]:
+                _stats["IP计数"][client_ip] += 1
+            if len(_stats["接口计数"]) < 5000 or path in _stats["接口计数"]:
+                _stats["接口计数"][path] += 1
+
             if status_code >= 400:
                 _stats["错误请求数"] += 1
 

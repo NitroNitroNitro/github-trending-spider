@@ -1,0 +1,4 @@
+## 2024-06-25 - [Log Injection and Memory Exhaustion DoS in Custom Access Logger]
+**Vulnerability:** The `AccessLogMiddleware` in `access_log.py` logged user-supplied data (`client_ip`, `path`, `user_agent`) without sanitizing newline characters, allowing for log injection/forging. It also tracked unique `client_ip` and `path` values in unbounded `defaultdict`s for hourly statistics, creating a risk of memory exhaustion DoS if an attacker flooded the server with randomized values.
+**Learning:** Even internal statistics and logging mechanisms can introduce vulnerabilities if user input is trusted implicitly. Unbounded data structures in long-running processes (like a FastAPI server) are a common vector for memory exhaustion.
+**Prevention:** Always sanitize user-supplied data (e.g., stripping `\r` and `\n`) before writing it to logs. Always implement reasonable upper bounds on data structures that track unique user-supplied values over time.
