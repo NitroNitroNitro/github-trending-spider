@@ -114,8 +114,10 @@
           v-for="item in items"
           v-else
           :key="item.url + item.title"
+          v-memo="[item, lang]"
           class="feed-item"
         >
+          <!-- ⚡ Bolt: memoize feed items to prevent re-renders from the ticking countdownTimer -->
           <div class="item-main">
             <a class="item-title" :href="item.url" target="_blank" rel="noreferrer">
               {{ item.title }}
