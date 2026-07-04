@@ -18,6 +18,13 @@ from starlette.requests import Request
 
 logger = logging.getLogger(__name__)
 
+
+def sanitize_log_input(value: str) -> str:
+    """Sanitize input string by removing or escaping newlines to prevent log injection."""
+    if not isinstance(value, str):
+        return value
+    return value.replace('\n', '\\n').replace('\r', '\\r')
+
 # =========================================================================
 # 内存统计计数器
 # =========================================================================
@@ -158,18 +165,29 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
         status_code = response.status_code
         user_agent = request.headers.get("user-agent", "未知客户端")
 
+        # Sanitize user-supplied data to prevent log injection
+        safe_client_ip = sanitize_log_input(client_ip)
+        safe_path = sanitize_log_input(path)
+        safe_user_agent = sanitize_log_input(user_agent)
+
         # 输出访问日志（中文格式）
         logger.info(
             "[访问] 来源IP=%s | 请求=%s %s | 状态码=%d | 耗时=%dms | 客户端=%s",
-            client_ip, method, path, status_code, latency_ms, user_agent,
+            safe_client_ip, method, safe_path, status_code, latency_ms, safe_user_agent,
         )
 
         # 更新统计计数器
         with _stats_lock:
             _stats["总请求数"] += 1
             _stats["累计耗时ms"] += latency_ms
-            _stats["IP计数"][client_ip] += 1
-            _stats["接口计数"][path] += 1
+
+            # Prevent memory exhaustion (DoS) by limiting unique tracked items
+            if len(_stats["IP计数"]) < 10000 or safe_client_ip in _stats["IP计数"]:
+                _stats["IP计数"][safe_client_ip] += 1
+
+            if len(_stats["接口计数"]) < 10000 or safe_path in _stats["接口计数"]:
+                _stats["接口计数"][safe_path] += 1
+
             if status_code >= 400:
                 _stats["错误请求数"] += 1
 

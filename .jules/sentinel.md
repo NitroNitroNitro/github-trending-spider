@@ -1,0 +1,4 @@
+## 2024-07-04 - Log Injection and Memory Exhaustion in Access Logger
+**Vulnerability:** The application logged user-supplied data (IP address, URL path, User-Agent) without sanitization, leading to log injection. In addition, the unique IP and paths were tracked in memory without bounds, which could lead to a memory exhaustion Denial of Service (DoS) attack if a user spoofed IPs or requested unique paths continuously.
+**Learning:** Never trust user input, even for simply logging it or tracking statistics in memory. Always sanitize inputs to prevent injection attacks and implement bounds on in-memory collections of unique user-supplied strings.
+**Prevention:** Sanitize user-provided strings by replacing `\n` and `\r` before passing them to loggers. Implement upper limits on dictionary/map sizes when tracking unique user-supplied data like IPs or paths.
