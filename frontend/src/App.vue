@@ -38,7 +38,7 @@
             <h2>{{ t('historyDrawerTitle') }}</h2>
             <p>{{ t('historyDrawerDesc') }}</p>
           </div>
-          <button class="history-drawer-close" type="button" @click="closeHistoryDrawer">×</button>
+          <button class="history-drawer-close" type="button" :aria-label="t('historyDrawerClose')" @click="closeHistoryDrawer">×</button>
         </div>
 
         <div v-if="historyDatesLoading" class="history-drawer-state">
@@ -186,6 +186,7 @@ const I18N = {
     historyArchive: '历史归档',
     historyDrawerTitle: '历史归档',
     historyDrawerDesc: '最近 7 天，不包含今天。选择日期后读取当天历史资讯。',
+    historyDrawerClose: '关闭历史归档',
     historyLoading: '正在加载历史归档',
     historyLoadErr: '加载历史归档失败：',
     historyTitle: '历史资讯',
@@ -218,6 +219,7 @@ const I18N = {
     historyArchive: 'Archive',
     historyDrawerTitle: 'Archive',
     historyDrawerDesc: 'Last 7 days, excluding today. Pick a date to read archived news.',
+    historyDrawerClose: 'Close Archive',
     historyLoading: 'Loading archive',
     historyLoadErr: 'Failed to load archive: ',
     historyTitle: 'Archive',
