@@ -114,8 +114,10 @@
           v-for="item in items"
           v-else
           :key="item.url + item.title"
+          v-memo="[item, lang]"
           class="feed-item"
         >
+          <!-- ⚡ Bolt Optimization: Uses v-memo to prevent expensive v-for re-renders triggered by the global countdownTimer, re-evaluating only if the specific item or display language changes. -->
           <div class="item-main">
             <a class="item-title" :href="item.url" target="_blank" rel="noreferrer">
               {{ item.title }}
