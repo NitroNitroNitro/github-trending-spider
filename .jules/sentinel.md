@@ -1,0 +1,4 @@
+## 2024-07-05 - Fix log injection and memory exhaustion DoS in access logs
+**Vulnerability:** Unbounded dictionary growth for tracking IPs and Paths in the access log statistics could lead to Memory Exhaustion Denial of Service (DoS). Additionally, unsanitized input (`client_ip`, `path`, `user_agent`) logged by `logger.info` could permit log injection attacks by malicious actors supplying carriage returns or newlines.
+**Learning:** Even internal tracking dictionaries (like `_stats["IP计数"]` and `_stats["接口计数"]`) must have explicit size limits when their keys are derived from user input. Moreover, variables retrieved from external requests must always be sanitized before being logged.
+**Prevention:** Always bound the size of tracking structures containing user-controlled keys using conditional logic or structures like LRU caches. Sanitize request inputs by removing or encoding newline characters before passing them to the logging system.
