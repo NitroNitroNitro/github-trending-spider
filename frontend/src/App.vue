@@ -110,11 +110,13 @@
           {{ t('noContent') }}
         </div>
 
+        <!-- ⚡ Bolt Optimization: Use v-memo to prevent unnecessary re-renders of list items caused by the ticking countdownText timer -->
         <article
           v-for="item in items"
           v-else
           :key="item.url + item.title"
           class="feed-item"
+          v-memo="[item, lang]"
         >
           <div class="item-main">
             <a class="item-title" :href="item.url" target="_blank" rel="noreferrer">
