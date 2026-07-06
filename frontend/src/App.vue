@@ -110,10 +110,12 @@
           {{ t('noContent') }}
         </div>
 
+        <!-- ⚡ Bolt: v-memo prevents expensive list item re-renders caused by the ticking countdown timer (countdownText) unless the item data or language changes. -->
         <article
           v-for="item in items"
           v-else
           :key="item.url + item.title"
+          v-memo="[item, lang]"
           class="feed-item"
         >
           <div class="item-main">
