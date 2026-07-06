@@ -1,0 +1,4 @@
+## 2025-02-14 - Fix Log Injection and DoS Risk in Access Log Middleware
+**Vulnerability:** The `AccessLogMiddleware` in `access_log.py` logged user-supplied fields (`client_ip`, `path`, `user_agent`) without sanitizing newline characters (`\n`, `\r`), posing a log injection risk. It also tracked statistics in memory unbounded, creating a potential memory exhaustion DoS vulnerability if flooded with requests using unique paths or spoofed IP addresses.
+**Learning:** Middleware handling raw HTTP requests must explicitly validate and sanitize input prior to logging and enforce strict bounds on any unbounded tracking data structures to prevent both spoofing and service availability loss.
+**Prevention:** Sanitize text meant for logging by stripping CRLF, and use conditional appends or hard limits on unbounded memory caching structures, such as ensuring sizes of statistics dictionaries remain under a predefined limit (e.g., `< 10000`).
