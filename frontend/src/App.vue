@@ -13,9 +13,9 @@
       </div>
       <div class="topbar-actions">
         <div class="lang-switch">
-          <button :class="{ active: lang === 'zh' }" @click="switchLang('zh')">中文</button>
-          <span class="lang-sep">|</span>
-          <button :class="{ active: lang === 'en' }" @click="switchLang('en')">EN</button>
+          <button :class="{ active: lang === 'zh' }" :aria-pressed="lang === 'zh'" @click="switchLang('zh')">中文</button>
+          <span class="lang-sep" aria-hidden="true">|</span>
+          <button :class="{ active: lang === 'en' }" :aria-pressed="lang === 'en'" @click="switchLang('en')">EN</button>
         </div>
         <div class="update-chip">⏱ {{ countdownText }}</div>
         <button class="history-button" type="button" @click="openHistoryDrawer">
@@ -68,13 +68,17 @@
     </div>
 
     <main class="layout">
-      <aside class="source-panel">
+      <aside class="source-panel" role="tablist" aria-label="Sources">
         <button
           v-for="source in sources"
           :key="source.id"
           class="source-tab"
           :class="{ active: source.id === activeSourceId }"
           type="button"
+          role="tab"
+          :aria-selected="source.id === activeSourceId"
+          :aria-controls="'feed-panel'"
+          :id="'tab-' + source.id"
           @click="selectSource(source.id)"
         >
           <span>{{ getDisplayLabel(source) }}</span>
@@ -82,7 +86,7 @@
         </button>
       </aside>
 
-      <section class="feed-panel">
+      <section class="feed-panel" role="tabpanel" :aria-labelledby="'tab-' + activeSourceId" id="feed-panel">
         <div class="feed-toolbar">
           <div>
             <h2>{{ feedTitle }}</h2>
@@ -803,7 +807,8 @@ a {
 .history-button:focus-visible {
   background: #F1F3F8;
   color: var(--primary);
-  outline: none;
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .gh-link {
@@ -815,6 +820,12 @@ a {
 
 .gh-link:hover {
   color: var(--text-1);
+}
+
+.gh-link:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .update-chip {
@@ -916,6 +927,11 @@ a {
   background: #F7F8FB;
 }
 
+.source-tab:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
 /* ── Feed panel ───────────────────────────── */
 
 .feed-panel {
@@ -969,7 +985,8 @@ a {
   border-color: #C7D9FF;
   background: var(--primary-soft);
   color: var(--primary);
-  outline: none;
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 /* ── History drawer ───────────────────────── */
@@ -1036,7 +1053,8 @@ a {
 .history-drawer-close:hover,
 .history-drawer-close:focus-visible {
   background: #F7F8FB;
-  outline: none;
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .history-date-list {
@@ -1064,6 +1082,11 @@ a {
 .history-date-row:hover:not(:disabled) {
   border-color: #C7D9FF;
   background: #F6F9FF;
+}
+
+.history-date-row:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .history-date-row.active {
@@ -1249,6 +1272,12 @@ a {
   opacity: 0.75;
 }
 
+.open-link:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 /* ── Skeleton ─────────────────────────────── */
 
 @keyframes shimmer {
@@ -1415,7 +1444,8 @@ a {
 .footer-easter-egg:focus-visible {
   color: var(--text-1);
   background: rgba(15, 23, 42, 0.05);
-  outline: none;
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 /* ── Language Switch ─────────────────────── */
@@ -1440,6 +1470,11 @@ a {
 
 .lang-switch button:hover {
   color: var(--text-1);
+}
+
+.lang-switch button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .lang-switch button.active {
