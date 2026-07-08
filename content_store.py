@@ -178,12 +178,13 @@ def list_recent_history_dates(days=7, output_dir=OUTPUT_ARCHIVE_DIR, today=None)
             batch_file = latest_archive_batch_file(source["id"], date_text, output_dir)
             if not batch_file:
                 continue
-            snapshot = _read_json_file(batch_file)
+
+            item_count = _read_item_count_fast(batch_file)
             sources.append({
                 "source": source,
                 "source_id": source["id"],
                 "batch_file": batch_file.name,
-                "item_count": snapshot.get("item_count", 0) if snapshot else 0,
+                "item_count": item_count,
             })
 
         results.append({
@@ -266,3 +267,27 @@ def _read_json_file(path):
     except Exception as e:
         logger.warning("读取归档 JSON 失败: %s", e)
         return None
+
+
+def _read_item_count_fast(path):
+    """
+    Fast extraction of item_count from a snapshot JSON using regex on a small chunk.
+    Falls back to full JSON parsing if not found.
+    """
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            chunk = f.read(2048)
+            # Match top-level item_count which is usually at the start of a line
+            # inside the root object formatting. The regex expects exactly 2 spaces
+            # of indentation because write_archive_snapshot uses indent=2.
+            match = re.search(r'\n  "item_count"\s*:\s*(\d+)', chunk)
+            if match:
+                return int(match.group(1))
+
+            # Fallback
+            f.seek(0)
+            data = json.load(f)
+            return data.get("item_count", 0) if isinstance(data, dict) else 0
+    except Exception as e:
+        logger.warning("Fast read item_count failed for %s: %s", path, e)
+        return 0
