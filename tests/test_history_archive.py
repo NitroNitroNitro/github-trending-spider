@@ -100,6 +100,34 @@ class TestHistoryArchive(unittest.TestCase):
             self.assertEqual(served_from, "unknown")
             self.assertEqual(batch_file, "")
 
+    def test_list_recent_history_dates_nested_item_count(self):
+        # test that the fast item count regex skips nested "item_count" keys
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target_dir = Path(temp_dir) / "github-daily" / "2026-06-06"
+            target_dir.mkdir(parents=True, exist_ok=True)
+            payload = {
+                "generated_at": "2026-06-06T07:50:00",
+                "source": {"id": "github-daily", "item_count": 999}, # nested!
+                "item_count": 5, # the real one
+                "items": [
+                    {
+                        "title": "item-01",
+                        "url": "https://example.com/01",
+                    }
+                ],
+            }
+            path = target_dir / "01.json"
+            # Dump with indentation to test multiline regex
+            with path.open("w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2)
+
+            result = list_recent_history_dates(
+                days=1,
+                output_dir=temp_dir,
+                today=date(2026, 6, 7),
+            )
+            self.assertEqual(result[0]["sources"][0]["item_count"], 5)
+
 
 if __name__ == "__main__":
     unittest.main()
