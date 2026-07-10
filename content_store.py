@@ -178,12 +178,12 @@ def list_recent_history_dates(days=7, output_dir=OUTPUT_ARCHIVE_DIR, today=None)
             batch_file = latest_archive_batch_file(source["id"], date_text, output_dir)
             if not batch_file:
                 continue
-            snapshot = _read_json_file(batch_file)
+            item_count = _read_item_count_from_file(batch_file)
             sources.append({
                 "source": source,
                 "source_id": source["id"],
                 "batch_file": batch_file.name,
-                "item_count": snapshot.get("item_count", 0) if snapshot else 0,
+                "item_count": item_count,
             })
 
         results.append({
@@ -257,6 +257,25 @@ def _next_batch_number(target_dir):
 
 def _redis_key(source_id):
     return "{}:source:{}:latest".format(REDIS_KEY_PREFIX, source_id)
+
+
+def _read_item_count_from_file(path):
+    """
+    Reads only the first 2KB of a JSON file and uses regex to extract the top-level
+    'item_count' to save CPU and memory overhead, avoiding full json.load().
+    """
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            chunk = f.read(2048)
+        match = re.search(r'\n  "item_count":\s*(\d+)', chunk)
+        if match:
+            return int(match.group(1))
+    except Exception as e:
+        logger.warning("正则提取 item_count 失败, 尝试全量解析: %s", e)
+
+    # Fallback to full parsing if regex fails or throws
+    snapshot = _read_json_file(path)
+    return snapshot.get("item_count", 0) if snapshot else 0
 
 
 def _read_json_file(path):
