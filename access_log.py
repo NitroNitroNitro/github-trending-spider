@@ -158,18 +158,28 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
         status_code = response.status_code
         user_agent = request.headers.get("user-agent", "未知客户端")
 
+        # 防御日志注入: 清除换行符
+        client_ip = client_ip.replace("\r", "").replace("\n", "")
+        method = method.replace("\r", "").replace("\n", "")
+        path = path.replace("\r", "").replace("\n", "")
+        user_agent = user_agent.replace("\r", "").replace("\n", "")
+
         # 输出访问日志（中文格式）
         logger.info(
             "[访问] 来源IP=%s | 请求=%s %s | 状态码=%d | 耗时=%dms | 客户端=%s",
             client_ip, method, path, status_code, latency_ms, user_agent,
         )
 
-        # 更新统计计数器
+        # 更新统计计数器 (防御内存耗尽 DoS: 限制字典大小)
         with _stats_lock:
             _stats["总请求数"] += 1
             _stats["累计耗时ms"] += latency_ms
-            _stats["IP计数"][client_ip] += 1
-            _stats["接口计数"][path] += 1
+
+            if len(_stats["IP计数"]) < 10000 or client_ip in _stats["IP计数"]:
+                _stats["IP计数"][client_ip] += 1
+            if len(_stats["接口计数"]) < 10000 or path in _stats["接口计数"]:
+                _stats["接口计数"][path] += 1
+
             if status_code >= 400:
                 _stats["错误请求数"] += 1
 
