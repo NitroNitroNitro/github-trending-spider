@@ -1,3 +1,6 @@
-## 2024-07-06 - Vue 3 List Rendering Bottleneck with Timers
-**Learning:** In Vue 3, frequent global reactive state changes (like a ticking countdown timer updating every second) can cause expensive, unnecessary re-evaluations and re-renders of list items rendered with `v-for`, even if the underlying list data hasn't changed.
-**Action:** Utilize the `v-memo` directive on `v-for` loops (e.g., `v-memo="[item, lang]"`) to explicitly tell Vue only to re-render the list items when specific dependencies change, effectively isolating the list from unrelated global state updates.
+## 2024-05-24 - Initial File
+**Learning:** Initializing bolt journal.
+**Action:** Use this file to record critical performance learnings for this codebase.
+## 2024-05-24 - Fast JSON regex extraction
+**Learning:** The Python backend's history date listing loaded entire JSON archive files just to fetch `item_count`, leading to unnecessary memory overhead.
+**Action:** Used regex on the first 2KB of the file chunk to quickly extract `item_count` by matching exactly two spaces `\n  "item_count"` to respect the JSON indentation, drastically reducing load time.
