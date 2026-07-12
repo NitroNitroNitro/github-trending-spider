@@ -13,9 +13,9 @@
       </div>
       <div class="topbar-actions">
         <div class="lang-switch">
-          <button :class="{ active: lang === 'zh' }" @click="switchLang('zh')">中文</button>
-          <span class="lang-sep">|</span>
-          <button :class="{ active: lang === 'en' }" @click="switchLang('en')">EN</button>
+          <button :class="{ active: lang === 'zh' }" :aria-pressed="lang === 'zh'" @click="switchLang('zh')">中文</button>
+          <span class="lang-sep" aria-hidden="true">|</span>
+          <button :class="{ active: lang === 'en' }" :aria-pressed="lang === 'en'" @click="switchLang('en')">EN</button>
         </div>
         <div class="update-chip">⏱ {{ countdownText }}</div>
         <button class="history-button" type="button" @click="openHistoryDrawer">
@@ -56,6 +56,7 @@
               active: selectedHistoryDate === dateInfo.date,
               disabled: !dateInfo.has_archive
             }"
+            :aria-pressed="selectedHistoryDate === dateInfo.date"
             type="button"
             :disabled="!dateInfo.has_archive"
             @click="selectHistoryDate(dateInfo)"
@@ -74,6 +75,7 @@
           :key="source.id"
           class="source-tab"
           :class="{ active: source.id === activeSourceId }"
+          :aria-pressed="source.id === activeSourceId"
           type="button"
           @click="selectSource(source.id)"
         >
