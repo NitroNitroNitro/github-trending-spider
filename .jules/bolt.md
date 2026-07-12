@@ -1,3 +1,6 @@
 ## 2024-07-06 - Vue 3 List Rendering Bottleneck with Timers
 **Learning:** In Vue 3, frequent global reactive state changes (like a ticking countdown timer updating every second) can cause expensive, unnecessary re-evaluations and re-renders of list items rendered with `v-for`, even if the underlying list data hasn't changed.
 **Action:** Utilize the `v-memo` directive on `v-for` loops (e.g., `v-memo="[item, lang]"`) to explicitly tell Vue only to re-render the list items when specific dependencies change, effectively isolating the list from unrelated global state updates.
+## 2024-07-12 - Fast extraction of fields from large JSON files
+**Learning:** In backend applications reading large historical snapshots, using `json.load()` to parse the entire file into memory just to retrieve a single top-level field (like `item_count`) can be a major bottleneck. A chunk-based regex search (`re.search` on the first 2KB) is exponentially faster for large files, though it can be brittle and requires handling the indent correctly (e.g. `\n  "item_count":`).
+**Action:** When a single primitive top-level field needs to be retrieved from large JSON files, use a chunked regex read for speed, but always implement a full `json.load()` fallback to ensure data accuracy in case of unexpected formatting.
