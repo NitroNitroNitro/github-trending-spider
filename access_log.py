@@ -146,9 +146,9 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         start_time = time.time()
-        client_ip = _get_client_ip(request)
+        client_ip = str(_get_client_ip(request) or "").replace('\n', '').replace('\r', '')
         method = request.method
-        path = request.url.path
+        path = str(request.url.path or "").replace('\n', '').replace('\r', '')
 
         # 执行请求
         response = await call_next(request)
@@ -156,7 +156,7 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
         # 计算耗时
         latency_ms = int((time.time() - start_time) * 1000)
         status_code = response.status_code
-        user_agent = request.headers.get("user-agent", "未知客户端")
+        user_agent = str(request.headers.get("user-agent", "未知客户端") or "").replace('\n', '').replace('\r', '')
 
         # 输出访问日志（中文格式）
         logger.info(
