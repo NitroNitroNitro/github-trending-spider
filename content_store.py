@@ -178,12 +178,12 @@ def list_recent_history_dates(days=7, output_dir=OUTPUT_ARCHIVE_DIR, today=None)
             batch_file = latest_archive_batch_file(source["id"], date_text, output_dir)
             if not batch_file:
                 continue
-            snapshot = _read_json_file(batch_file)
+            item_count = _extract_item_count(batch_file)
             sources.append({
                 "source": source,
                 "source_id": source["id"],
                 "batch_file": batch_file.name,
-                "item_count": snapshot.get("item_count", 0) if snapshot else 0,
+                "item_count": item_count,
             })
 
         results.append({
@@ -266,3 +266,21 @@ def _read_json_file(path):
     except Exception as e:
         logger.warning("读取归档 JSON 失败: %s", e)
         return None
+
+
+def _extract_item_count(path):
+    """Fast extraction of item_count from snapshot JSON, falling back to full parse."""
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            chunk = f.read(2048)
+            # Use ^ with re.MULTILINE and exactly two spaces to ensure we only match the top-level key
+            match = re.search(r'^  "item_count":\s*(\d+)', chunk, re.MULTILINE)
+            if match:
+                return int(match.group(1))
+
+            f.seek(0)
+            data = json.load(f)
+            return data.get("item_count", 0)
+    except Exception as e:
+        logger.warning("Failed to extract item_count: %s", e)
+        return 0
