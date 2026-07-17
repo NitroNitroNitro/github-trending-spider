@@ -178,12 +178,12 @@ def list_recent_history_dates(days=7, output_dir=OUTPUT_ARCHIVE_DIR, today=None)
             batch_file = latest_archive_batch_file(source["id"], date_text, output_dir)
             if not batch_file:
                 continue
-            snapshot = _read_json_file(batch_file)
+            item_count = _extract_item_count(batch_file)
             sources.append({
                 "source": source,
                 "source_id": source["id"],
                 "batch_file": batch_file.name,
-                "item_count": snapshot.get("item_count", 0) if snapshot else 0,
+                "item_count": item_count,
             })
 
         results.append({
@@ -257,6 +257,25 @@ def _next_batch_number(target_dir):
 
 def _redis_key(source_id):
     return "{}:source:{}:latest".format(REDIS_KEY_PREFIX, source_id)
+
+
+def _extract_item_count(path):
+    """快速从归档文件中提取 item_count，避免加载整个大文件。"""
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            chunk = f.read(2048)
+            # 依赖 indent=2 的格式，且只匹配顶层的 item_count
+            match = re.search(r'^  "item_count":\s*(\d+)', chunk, re.MULTILINE)
+            if match:
+                return int(match.group(1))
+
+            # 降级: 完整解析 JSON
+            f.seek(0)
+            snapshot = json.load(f)
+            return snapshot.get("item_count", 0) if isinstance(snapshot, dict) else 0
+    except Exception as e:
+        logger.warning("读取归档 JSON 获取 item_count 失败: %s", e)
+        return 0
 
 
 def _read_json_file(path):
