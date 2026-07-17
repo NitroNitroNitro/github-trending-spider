@@ -158,10 +158,15 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
         status_code = response.status_code
         user_agent = request.headers.get("user-agent", "未知客户端")
 
+        # 防止日志注入：清理可能包含换行符的用户输入
+        safe_ip = str(client_ip or "").replace("\n", "").replace("\r", "")
+        safe_path = str(path or "").replace("\n", "").replace("\r", "")
+        safe_user_agent = str(user_agent or "").replace("\n", "").replace("\r", "")
+
         # 输出访问日志（中文格式）
         logger.info(
             "[访问] 来源IP=%s | 请求=%s %s | 状态码=%d | 耗时=%dms | 客户端=%s",
-            client_ip, method, path, status_code, latency_ms, user_agent,
+            safe_ip, method, safe_path, status_code, latency_ms, safe_user_agent,
         )
 
         # 更新统计计数器
