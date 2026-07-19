@@ -121,14 +121,14 @@ def _get_client_ip(request: Request) -> str:
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
         # X-Forwarded-For 格式: "客户端IP, 代理1, 代理2"，取第一个
-        return forwarded.split(",")[0].strip()
+        return str(forwarded.split(",")[0] or "").replace("\r", "").replace("\n", "").strip()
 
     real_ip = request.headers.get("x-real-ip")
     if real_ip:
-        return real_ip.strip()
+        return str(real_ip or "").replace("\r", "").replace("\n", "").strip()
 
     if request.client:
-        return request.client.host
+        return str(request.client.host or "").replace("\r", "").replace("\n", "").strip()
     return "未知IP"
 
 
@@ -147,8 +147,8 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         start_time = time.time()
         client_ip = _get_client_ip(request)
-        method = request.method
-        path = request.url.path
+        method = str(request.method or "").replace("\r", "").replace("\n", "")
+        path = str(request.url.path or "").replace("\r", "").replace("\n", "")
 
         # 执行请求
         response = await call_next(request)
@@ -156,7 +156,7 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
         # 计算耗时
         latency_ms = int((time.time() - start_time) * 1000)
         status_code = response.status_code
-        user_agent = request.headers.get("user-agent", "未知客户端")
+        user_agent = str(request.headers.get("user-agent") or "未知客户端").replace("\r", "").replace("\n", "")
 
         # 输出访问日志（中文格式）
         logger.info(
@@ -168,8 +168,19 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
         with _stats_lock:
             _stats["总请求数"] += 1
             _stats["累计耗时ms"] += latency_ms
-            _stats["IP计数"][client_ip] += 1
-            _stats["接口计数"][path] += 1
+
+            # 防范内存耗尽 DoS 攻击 (限制最大缓存条目数量)
+            if len(_stats["IP计数"]) >= 1000 and client_ip not in _stats["IP计数"]:
+                # 不要永远忽略新 IP，为了统计准确，可以统一放入一个特殊的键
+                _stats["IP计数"]["<其他IP>"] += 1
+            else:
+                _stats["IP计数"][client_ip] += 1
+
+            if len(_stats["接口计数"]) >= 1000 and path not in _stats["接口计数"]:
+                _stats["接口计数"]["<其他接口>"] += 1
+            else:
+                _stats["接口计数"][path] += 1
+
             if status_code >= 400:
                 _stats["错误请求数"] += 1
 
