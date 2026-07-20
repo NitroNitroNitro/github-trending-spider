@@ -133,11 +133,13 @@ def _fetch_top_story_ids(max_retries):
     return []
 
 
-def _fetch_item(item_id):
+def _fetch_item(item_id, session=None):
     """获取单个 HN item（story 或 comment）。"""
     url = "{}/item/{}.json".format(HN_API_BASE, item_id)
     try:
-        resp = requests.get(url, timeout=15)
+        # Use session if provided, otherwise fallback to requests.get
+        req = session if session else requests
+        resp = req.get(url, timeout=15)
         resp.raise_for_status()
         return resp.json()
     except requests.RequestException as e:
@@ -149,17 +151,26 @@ def _fetch_items_concurrent(item_ids):
     """并发获取多个 HN item。"""
     results = [None] * len(item_ids)
 
-    with ThreadPoolExecutor(max_workers=HN_CONCURRENT_WORKERS) as executor:
-        future_to_idx = {
-            executor.submit(_fetch_item, item_id): idx
-            for idx, item_id in enumerate(item_ids)
-        }
-        for future in as_completed(future_to_idx):
-            idx = future_to_idx[future]
-            try:
-                results[idx] = future.result()
-            except Exception as e:
-                logger.debug("并发获取 item 异常: %s", e)
+    with requests.Session() as session:
+        # Configure connection pooling to match concurrent workers
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=HN_CONCURRENT_WORKERS,
+            pool_maxsize=HN_CONCURRENT_WORKERS
+        )
+        session.mount('https://', adapter)
+        session.mount('http://', adapter)
+
+        with ThreadPoolExecutor(max_workers=HN_CONCURRENT_WORKERS) as executor:
+            future_to_idx = {
+                executor.submit(_fetch_item, item_id, session): idx
+                for idx, item_id in enumerate(item_ids)
+            }
+            for future in as_completed(future_to_idx):
+                idx = future_to_idx[future]
+                try:
+                    results[idx] = future.result()
+                except Exception as e:
+                    logger.debug("并发获取 item 异常: %s", e)
 
     return results
 
